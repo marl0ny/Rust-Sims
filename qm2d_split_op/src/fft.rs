@@ -1,16 +1,4 @@
-use crate::constants::*;
 use crate::complex::*;
-
-
-pub fn square_transpose_in_place<T: Copy>(array: &mut [Complex<T>], n: usize) {
-    for i in 0..n {
-        for j in i+1..n {
-            let tmp = array[i*n + j];
-            array[i*n + j] = array[j*n + i];
-            array[j*n + i] = tmp;
-        }
-    }
-}
 
 /* Reverse bit sort an array, where the size of the array
 must be a power of two.
@@ -98,45 +86,44 @@ Multithreading reference:
 https://doc.rust-lang.org/book/ch16-01-threads.html
 https://doc.rust-lang.org/book/ch16-02-message-passing.html
 */
-pub fn horizontal_square_fft(is_inverse: bool, array: &mut [Complex<f32>]) {
+pub fn horizontal_square_fft(is_inverse: bool,
+                             array: &mut [Complex<f32>],
+                             width: usize, // Width of the square array
+                             th_total: usize // Number of threads to use
+                            ) {
     let mut receivers = std::vec::Vec::<
         std::sync::mpsc::Receiver<std::vec::Vec<Complex<f32>>>
-        >::with_capacity(TH_COUNT);
-    for th_index in 0..TH_COUNT {
+        >::with_capacity(th_total);
+    for th_index in 0..th_total {
         let (tx, rx) = std::sync::mpsc::channel();
         let mut v
-            = std::vec::Vec::<Complex<f32>>::with_capacity(N*N/TH_COUNT);
-        for i in th_index*N*N/TH_COUNT..(th_index + 1)*N*N/TH_COUNT {
+            = std::vec::Vec::<Complex<f32>>::
+            with_capacity(width*width/th_total);
+        for i in th_index*width*width/th_total
+            ..(th_index + 1)*width*width/th_total {
             v.push(array[i]);
         }
         std::thread::spawn(move || {
-            for i in 0..N/TH_COUNT {
+            for i in 0..width/th_total {
                 if is_inverse {
-                    ifft_in_place(&mut v.as_mut_slice()[i*N..(i+1)*N], N);
+                    ifft_in_place(&mut v.as_mut_slice()[i*width..(i+1)*width],
+                                  width);
                 } else {
-                    fft_in_place(&mut v.as_mut_slice()[i*N..(i+1)*N], N);
+                    fft_in_place(&mut v.as_mut_slice()[i*width..(i+1)*width],
+                                 width);
                 }
             }
             tx.send(v).unwrap();
         });
         receivers.push(rx);
     }
-    /* let mut vec_vec = std::vec::Vec::<
-        std::vec::Vec<Complex<f32>>
-        >::with_capacity(TH_COUNT);
-    for i in 0..TH_COUNT {
-        vec_vec.push(std::vec::Vec
-            <Complex<f32>>::with_capacity(N*N/TH_COUNT));
-    }*/
-    let mut th_index: usize = TH_COUNT - 1;
+    let mut th_index: usize = th_total - 1;
     while let Some(r) = receivers.pop() {
         let v = r.recv().unwrap();
-        for i in th_index*N/TH_COUNT..(th_index + 1)*N/TH_COUNT {
-            let i_get = i - th_index*N/TH_COUNT;
-            for j in 0..N {
-                // let transpose_index: usize = j*N + i;
-                // let src_val = v[i_get*N + j];
-                array[N*i + j] = v[i_get*N + j];
+        for i in th_index*width/th_total..(th_index + 1)*width/th_total {
+            let i_get = i - th_index*width/th_total;
+            for j in 0..width {
+                array[width*i + j] = v[i_get*width + j];
             }
         }
         th_index = if th_index == 0 {th_index} else {th_index-1};

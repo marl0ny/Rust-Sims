@@ -1,10 +1,11 @@
 
 use qm2d_split_op::constants::*;
+use qm2d_split_op::transpose::*;
 use qm2d_split_op::fft::*;
 use qm2d_split_op::complex::*;
 use qm2d_split_op::wavepacket::*;
 use qm2d_split_op::bitmap::*;
-use qm2d_split_op::color::*;
+use qm2d_split_op::domain_coloring::*;
 use qm2d_split_op::serialize::*;
 
 use std::env;
@@ -37,7 +38,8 @@ fn init_potential(potential: &mut [Complex<f32>]) {
     }
 }
 
-/* fn init_vector_potential(v_x: &mut [Complex<f32>], v_y: &mut [Complex<f32>]) {
+/* fn init_vector_potential(v_x: &mut [Complex<f32>],
+                            v_y: &mut [Complex<f32>]) {
     for i in 0..N {
         for j in 0..N {
             v_x[i*N + j] = Complex {real: 0.0, imag: 0.0};
@@ -48,7 +50,7 @@ fn init_potential(potential: &mut [Complex<f32>]) {
 }*/
 
 /* Initialize the square of the momentum values that correspond to the
-real-space simulation domain. These are shifted to match the fft output. */ 
+real-space simulation domain. These are shifted to match the fft output. */
 fn init_momentum_squared(p_squared: &mut [f32]) {
     for i in 0..N {
         for j in 0..N {
@@ -73,9 +75,9 @@ fn propagate_kinetic(psi: &mut [Complex<f32>],
                      p_squared: &[f32], dt: Complex<f32>,
                      use_mt: bool) {
     if use_mt {
-        horizontal_square_fft(false, psi);
+        horizontal_square_fft(false, psi, N, TH_COUNT);
         square_transpose_in_place(psi, N);
-        horizontal_square_fft(false, psi);
+        horizontal_square_fft(false, psi, N, TH_COUNT);
         square_transpose_in_place(psi, N);
     } else {
         for i in 0..N {
@@ -94,9 +96,9 @@ fn propagate_kinetic(psi: &mut [Complex<f32>],
         }
     }
     if use_mt {
-        horizontal_square_fft(true, psi);
+        horizontal_square_fft(true, psi, N, TH_COUNT);
         square_transpose_in_place(psi, N);
-        horizontal_square_fft(true, psi);
+        horizontal_square_fft(true, psi, N, TH_COUNT);
         square_transpose_in_place(psi, N);
     } else {
         for i in 0..N {
@@ -164,8 +166,6 @@ fn dampen(psi: &mut [Complex<f32>], dt: f32) {
                 let ddy_psi = 
                     psi[N*modi(i+1) + j] - psi[N*modi(i) + j];
                 let val = 0.05 - f32::abs(y - 0.95);
-                // let val = y - 0.9;
-                // let val = 0.25*f32::exp(-0.5*(y - 0.95)*(y - 0.95)/(0.0225*0.0225));
                 jx.push(val*(psi[i*N + j]*ddx_psi).imag);
                 jy.push(val*(psi[i*N + j]*ddy_psi).imag);
             } else {
@@ -264,6 +264,7 @@ fn main() {
         let fname = input_args.pop();
         match load_f32_simulation_data(psi_vec.as_mut_slice(),
                                        potential_vec.as_mut_slice(),
+                                       N as u32, N as u32,
                                        fname.unwrap()) {
             Ok(a) => a,
             Err(e) => println!("{}", e),
@@ -315,5 +316,6 @@ fn main() {
     }
     let _ = save_f32_simulation_data("last_state.bin".to_string(),
                                      psi_vec.as_slice(),
-                                     potential_vec.as_slice());
+                                     potential_vec.as_slice(),
+                                     N as u32, N as u32);
 }

@@ -1,7 +1,9 @@
+pub mod copy_to_bytes;
+pub mod complex;
+pub mod transpose;
 pub mod fft;
 pub mod constants;
-pub mod complex;
-pub mod color;
+pub mod domain_coloring;
 pub mod bitmap;
 pub mod wavepacket;
 pub mod serialize;

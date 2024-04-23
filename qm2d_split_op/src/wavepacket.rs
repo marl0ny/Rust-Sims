@@ -2,13 +2,15 @@ use crate::complex::*;
 
 pub struct WavePacket {
     pub a: f32, // amplitude
-    pub x0: f32, pub y0: f32, // initial x and y positions (x: [0, 1], y: [0, 1])
+    // initial x and y positions (x: [0, 1], y: [0, 1])
+    pub x0: f32, pub y0: f32,
     pub sx: f32, pub sy: f32, // x and y standard deviations
     pub nx: f32, pub ny: f32, // Wavenumber in the x and y direction
 }
 
 pub fn init_wave_packet(
-    array: &mut [Complex<f32>], width: usize, height: usize,
+    array: &mut [Complex<f32>],
+    width: usize, height: usize,
     w: WavePacket) {
     for i in 0..height {
         for j in 0..width  {

@@ -1,10 +1,14 @@
+/* Constants used for the simulation. Change these before rebuilding
+the project.
+*/
 
-// Simulation side length in number of pixels (currently only squares used)
+// Simulation side length in number of pixels (currently only squares used).
+// THIS NEEDS TO BE A POWER OF TWO, or else bad things may happen.
 pub const N: usize = 1024;
 
 pub const NUMBER_OF_STEPS: usize = 3000;
 
-// The timestep used. This is a complex value.
+// The time step used. This is a complex value.
 pub const RE_DT: f32 = 0.5;
 pub const IM_DT: f32 = 0.0;
 

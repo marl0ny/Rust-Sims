@@ -107,7 +107,7 @@ impl <T: std::ops::Mul<Output=T>
         + Copy> std::ops::Mul for Complex<T> {
     type Output = Self;
     fn mul(self, other: Self) -> Self {
-        return Self {real: self.real*other.real - self.imag*other.imag, 
+        return Self {real: self.real*other.real - self.imag*other.imag,
                     imag: self.real*other.imag + self.imag*other.real};
     }
 }

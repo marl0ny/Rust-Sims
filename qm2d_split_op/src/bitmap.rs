@@ -1,26 +1,4 @@
-pub fn copy_i32(bytes: &mut [u8], val: i32, offset: &mut usize) {
-    let val_arr: [u8; 4] = val.to_ne_bytes();
-    for i in 0..4 {
-        bytes[*offset] = val_arr[i];
-        *offset += 1;
-    }
-}
-
-pub fn copy_u32(bytes: &mut [u8], val: u32, offset: &mut usize) {
-    let val_arr: [u8; 4] = val.to_ne_bytes();
-    for i in 0..4 {
-        bytes[*offset] = val_arr[i];
-        *offset += 1;
-    }
-}
-
-pub fn copy_u16(bytes: &mut [u8], val: u16, offset: &mut usize) {
-    let val_arr: [u8; 2] = val.to_ne_bytes();
-    for i in 0..2 {
-        bytes[*offset] = val_arr[i];
-        *offset += 1;
-    }
-}
+use crate::copy_to_bytes::*;
 
 /* Struct for keeping track of bitmap header image information.
 
@@ -75,7 +53,7 @@ on the examples given in the Rust documentation:
 https://doc.rust-lang.org/std/fs/struct.File.html
 */
 pub fn make_bitmap_file(filename: std::string::String,
-                    data: &mut [u8]) -> std::io::Result<()> {
+                        data: &mut [u8]) -> std::io::Result<()> {
     use std::io::Write;
     let mut file = std::fs::File::create(filename)?;
     file.write_all(&data)?;
