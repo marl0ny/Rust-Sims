@@ -2,79 +2,15 @@
 use qm2d_split_op::constants::*;
 use qm2d_split_op::fft::*;
 use qm2d_split_op::complex::*;
+use qm2d_split_op::wavepacket::*;
 use qm2d_split_op::bitmap::*;
+use qm2d_split_op::color::*;
+use qm2d_split_op::serialize::*;
+
 use std::env;
 
-const W_LOW_RES: usize = 32;
-const H_LOW_RES: usize = 32;
-// IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
-const POTENTIAL_ASCII: [u8; W_LOW_RES*H_LOW_RES + H_LOW_RES] = *b"
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-##############.##.##############
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................";
 
-const RE_DT: f32 = 0.5;
-const IM_DT: f32 = 0.0;
-
-struct WavePacket {
-    a: f32, // amplitude
-    x0: f32, y0: f32, // initial x and y positions (x: [0, 1], y: [0, 1])
-    sx: f32, sy: f32, // x and y standard deviations
-    nx: f32, ny: f32, // Wavenumber in the x and y direction
-}
-
-fn init_wave_packet(
-    array: &mut [Complex<f32>],
-    w: WavePacket) {
-    for i in 0..N {
-        for j in 0..N  {
-            let x: f32 = (j as f32)/(N as f32);
-            let y: f32 = (i as f32)/(N as f32);
-            let xt: f32 = x - w.x0;
-            let yt: f32 = y - w.y0;
-            let abs_val: f32 = w.a
-                *f32::exp(-0.5*xt*xt/(w.sx*w.sx))
-                *f32::exp(-0.5*yt*yt/(w.sy*w.sy));
-            let nr = w.nx*x + w.ny*y;
-            array[i*N + j] = Complex {
-                real: abs_val*f32::cos(2.0*std::f32::consts::PI*nr),
-                imag: abs_val*f32::sin(2.0*std::f32::consts::PI*nr),
-            };
-
-        }
-    }
-}
-
-/* Initialize the V(x, y) term of the Shrodinger equation. */
+/* Initialize the V(x, y) term of the Schrodinger equation. */
 fn init_potential(potential: &mut [Complex<f32>]) {
     let mut potential_low_res = std::vec::Vec::<u8>::with_capacity(32*16);
     for i in 0..(W_LOW_RES*H_LOW_RES + H_LOW_RES) {
@@ -99,24 +35,6 @@ fn init_potential(potential: &mut [Complex<f32>]) {
             };
         }
     }
-    /* for i in 0..N {
-        for j in 0..N {
-            let y = (i as f32)/(N as f32);
-            if y > 0.9 {
-                let val = 0.05 - f32::abs(y - 0.95);
-                potential[N*i + j] = potential[N*i + j] 
-                    - Complex {real: -val, imag: val};
-            }   
-        }
-    }*/
-    /* for i in 0..N {
-        for j in 0..N {
-            let x: f32 = (j as f32)/(N as f32);
-            let y: f32 = (i as f32)/(N as f32);
-            potential[i*N + j] = Complex {
-                real: 0.25*((x-0.5)*(x-0.5) + (y-0.5)*(y-0.5)), imag: 0.0}
-        }
-    }*/
 }
 
 /* fn init_vector_potential(v_x: &mut [Complex<f32>], v_y: &mut [Complex<f32>]) {
@@ -194,7 +112,6 @@ fn propagate_kinetic(psi: &mut [Complex<f32>],
 
 struct Nonlinear {
     square: f32,
-
 }
 
 /* Apply the transformation 
@@ -268,119 +185,10 @@ fn dampen(psi: &mut [Complex<f32>], dt: f32) {
     }
 }
 
-struct Color {
-    r: f64, g: f64, b: f64,
-}
-
-/* Function that converts a hue angle to its corresponding color.
-
-References:
-
-Wikipedia - Domain coloring
-https://en.wikipedia.org/wiki/Domain_coloring
-
-Wikipedia - Hue
-https://en.wikipedia.org/wiki/Hue
-
-https://en.wikipedia.org/wiki/Hue#/media/File:HSV-RGB-comparison.svg
-
- */
-fn argument_to_color(arg_val: f64) -> Color {
-    let pi: f64 = std::f64::consts::PI;
-    let max_col: f64 = 1.0;
-    let min_col: f64 = 50.0/255.0;
-    let col_range: f64 = max_col - min_col;
-    if arg_val <= pi/3.0 && arg_val >= 0.0 {
-        return Color {
-            r: max_col,
-            g: min_col + col_range*arg_val/(pi/3.0), 
-            b: min_col};
-    } else if arg_val > pi/3.0 && arg_val <= 2.0*pi/3.0 {
-        return Color {
-            r: max_col - col_range*(arg_val - pi/3.0)/(pi/3.0),
-            g: max_col, 
-            b: min_col};
-    } else if arg_val > 2.0*pi/3.0 && arg_val <= pi {
-        return Color {
-            r: min_col, 
-            g: max_col,
-            b: min_col + col_range*(arg_val - 2.0*pi/3.0)/(pi/3.0)};
-    } else if arg_val < 0.0 && arg_val > -pi/3.0 {
-        return Color {
-            r: max_col, 
-            g: min_col,
-            b: min_col - col_range*arg_val/(pi/3.0)};
-    } else if arg_val <= -pi/3.0 && arg_val > -2.0*pi/3.0 {
-        return Color {
-            r: max_col + (col_range*(arg_val + pi/3.0)/(pi/3.0)),
-            g: min_col, 
-            b: max_col};
-    } else if arg_val <= -2.0*pi/3.0 && arg_val >= -pi {
-        return Color {
-            r: min_col,
-            g: min_col - (col_range*(arg_val + 2.0*pi/3.0)/(pi/3.0)),
-            b: max_col};
-    }
-    else {
-        return Color {r: min_col, g: max_col, b: max_col};
-    }
-}
-
-fn load_f32_simulation_data(psi: &mut [Complex<f32>],
-                            potential: &mut [Complex<f32>],
-                            filename: std::string::String,
-                            ) -> std::io::Result<()> {
-    let sizeof_complex: usize = 2*4;
-    let header_size: usize = 8;
-    let width: u32 = N as u32;
-    let height: u32 = N as u32;
-    let total_size: usize 
-        = header_size + 2*sizeof_complex*((width*height) as usize);
-    use std::io::prelude::*;
-    let mut bytes = std::vec::Vec::<u8>::with_capacity(total_size);
-    let file = std::io::BufReader::new(std::fs::File::open(filename)?);
-    let mut size = 0;
-    // https://doc.rust-lang.org/std/io/trait.Read.html#method.bytes
-    for b in file.bytes() {
-// https://doc.rust-lang.org/rust-by-example/error/result/early_returns.html
-        match b {
-            Ok(val) => bytes.push(val),
-            Err(e) => return Err(e),
-        };
-        size += 1;
-        if size > total_size {
-            break; // TODO!
-            // return Err::<&str, ()>(());
-        }
-    }
-    let width2: u32 = write_u32(&bytes.as_slice()[0..4]);
-    let height2: u32 = write_u32(&bytes.as_slice()[4..8]);
-    // println!("{}, {}", width2, height2);
-    if width2 == width && height2 == height {
-        let arr = &bytes.as_slice()[8..total_size];
-        let s = sizeof_complex*2;
-        for i in 0..width*height {
-            let k = s*(i as usize);
-            psi[i as usize] = Complex {
-                real: write_f32(&arr[k..k+4]),
-                imag: write_f32(&arr[k+4..k+8])};
-            potential[i as usize] = Complex {
-                real: write_f32(&arr[k+8..k+12]), 
-                imag: write_f32(&arr[k+12..k+16])};
-        }
-    } else {
-        // TODO
-    }
-    Ok(())
-
-}
-
-
-
 fn fill_pixel_data(pixels: &mut [u8], pixel_offset: usize,
-                   psi: & [Complex<f32>], psi_brightness: f64,
-                   phi: & [Complex<f32>], phi_brightness: f64,
-                   w: usize, h: usize) {
+    psi: & [Complex<f32>], psi_brightness: f64,
+    phi: & [Complex<f32>], phi_brightness: f64,
+    w: usize, h: usize) {
     for i in 0..h {
         for j in 0..w {
             let index: usize = i*w + j;
@@ -397,110 +205,6 @@ fn fill_pixel_data(pixels: &mut [u8], pixel_offset: usize,
         }
     }
 }
-
-
-
-fn copy_f32(bytes: &mut [u8], val: f32, offset: &mut usize) {
-    let val_arr: [u8; 4] = val.to_ne_bytes();
-    for i in 0..4 {
-        bytes[*offset] = val_arr[i];
-        *offset += 1;
-    }
-}
-
-fn save_f32_simulation_data(filename: std::string::String,
-                            psi: &[Complex<f32>],
-                            potential: &[Complex<f32>]
-                            ) -> std::io::Result<()> {
-    let sizeof_complex: usize = 2*4;
-    let header_size: usize = 8;
-    let width: u32 = N as u32;
-    let height: u32 = N as u32;
-    let total_size: usize 
-        = header_size + 2*sizeof_complex*((width*height) as usize);
-    let mut bytes = std::vec::Vec::<u8>::with_capacity(total_size);
-    for _ in 0..total_size {
-        bytes.push(0);
-    };
-    let mut offset: usize = 0;
-    copy_u32(bytes.as_mut_slice(), width, &mut offset);
-    copy_u32(bytes.as_mut_slice(), height, &mut offset);
-    for i in 0..width*height {
-        copy_f32(bytes.as_mut_slice(), psi[i as usize].real, &mut offset);
-        copy_f32(bytes.as_mut_slice(), psi[i as usize].imag, &mut offset);
-        copy_f32(bytes.as_mut_slice(), potential[i as usize].real, &mut offset);
-        copy_f32(bytes.as_mut_slice(), potential[i as usize].imag, &mut offset);
-    }
-    use std::io::Write;
-    let mut file = std::fs::File::create(filename)?;
-    file.write_all(bytes.as_slice())?;
-    Ok(())
-}
-
-fn write_f32(bytes: &[u8]) -> f32 {
-    let mut val_arr: [u8; 4] = [0; 4];
-    for i in 0..4 {
-        val_arr[i] = bytes[i];
-    }
-    return f32::from_ne_bytes(val_arr);
-}
-
-fn write_u32(bytes: &[u8]) -> u32 {
-    let mut val_arr: [u8; 4] = [0; 4];
-    for i in 0..4 {
-        val_arr[i] = bytes[i];
-    }
-    return u32::from_ne_bytes(val_arr);
-}
-
-// fn load_f32_simulation_data(psi: &mut [Complex<f32>],
-//                             potential: &mut [Complex<f32>],
-//                             filename: std::string::String,
-//                             ) -> std::io::Result<()> {
-//     let sizeof_complex: usize = 2*4;
-//     let header_size: usize = 8;
-//     let width: u32 = N as u32;
-//     let height: u32 = N as u32;
-//     let total_size: usize 
-//         = header_size + 2*sizeof_complex*((width*height) as usize);
-//     use std::io::prelude::*;
-//     let mut bytes = std::vec::Vec::<u8>::with_capacity(total_size);
-//     let file = std::io::BufReader::new(std::fs::File::open(filename)?);
-//     let mut size = 0;
-//     // https://doc.rust-lang.org/std/io/trait.Read.html#method.bytes
-//     for b in file.bytes() {
-// // https://doc.rust-lang.org/rust-by-example/error/result/early_returns.html
-//         match b {
-//             Ok(val) => bytes.push(val),
-//             Err(e) => return Err(e),
-//         };
-//         size += 1;
-//         if size > total_size {
-//             break; // TODO!
-//             // return Err::<&str, ()>(());
-//         }
-//     }
-//     let width2: u32 = write_u32(&bytes.as_slice()[0..4]);
-//     let height2: u32 = write_u32(&bytes.as_slice()[4..8]);
-//     // println!("{}, {}", width2, height2);
-//     if width2 == width && height2 == height {
-//         let arr = &bytes.as_slice()[8..total_size];
-//         let s = sizeof_complex*2;
-//         for i in 0..width*height {
-//             let k = s*(i as usize);
-//             psi[i as usize] = Complex {
-//                 real: write_f32(&arr[k..k+4]),
-//                 imag: write_f32(&arr[k+4..k+8])};
-//             potential[i as usize] = Complex {
-//                 real: write_f32(&arr[k+8..k+12]), 
-//                 imag: write_f32(&arr[k+12..k+16])};
-//         }
-//     } else {
-//         // TODO
-//     }
-//     Ok(())
-
-// }
 
 fn main() {
 
@@ -565,7 +269,7 @@ fn main() {
             Err(e) => println!("{}", e),
         };
     } else {
-        init_wave_packet(psi_vec.as_mut_slice(), 
+        init_wave_packet(psi_vec.as_mut_slice(), N, N,
                          WavePacket {a: 25.0, x0: 0.5, y0: 0.2,
                          sx: 0.07, sy: 0.07, 
                          nx: 0.0, 

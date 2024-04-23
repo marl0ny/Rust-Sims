@@ -1,11 +1,13 @@
 # Quantum Mechanics in 2D with the Split Operator method
 
-Refactor of [this gist](https://gist.github.com/marl0ny/81a2e5498a05f50040f4d928ad805ef6).
 Numerically solve for the time-dependent Schrodinger equation in 2D,
-using the split operator method.
+using the split operator method. No dependencies required, just type
+`cargo build` and `cargo run`.
+This will output a series of bmp images where each image is a frame of the 
+simulation. Note that the file `constants.rs` contains compile time constants
+which controls the parameters of the simulation. While these remain constant when the simulation is running, change these values then rebuild to change the simulation output.
 
-Once builded, this will output a series of bmp images which show each frame of the 
-simulation.
+This project is a refactor of [this gist](https://gist.github.com/marl0ny/81a2e5498a05f50040f4d928ad805ef6), where everything was originally contained in a single massive file. Special thanks to the commentators of [this discussion](https://www.reddit.com/r/rust/comments/1c8tsig/comment/l0guur7), especially VorpalWay's and LiesAreFunny's helpful suggestions, as well as gaolaowai's [pull request](https://github.com/marl0ny/Rust-Sims/pull/1) for properly fixing how the files should be organized. 
 
 ## References:
 

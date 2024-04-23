@@ -1,3 +1,6 @@
 /target
 /*/target
 .DS_Store
+*.bmp
+*.mp4
+last_state.bin

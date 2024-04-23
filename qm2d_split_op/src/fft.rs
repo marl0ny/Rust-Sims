@@ -1,6 +1,7 @@
 use crate::constants::*;
 use crate::complex::*;
 
+
 pub fn square_transpose_in_place<T: Copy>(array: &mut [Complex<T>], n: usize) {
     for i in 0..n {
         for j in i+1..n {
@@ -36,7 +37,7 @@ fn reverse_bit_sort<T: Copy>(array: &mut [Complex<T>], n: usize) {
 }
 
 /* This function implements the iterative in place radix-2 
-Cooley-Turkey Fast Fourier Transform Algorithm. The size of the input
+Cooley-Tukey Fast Fourier Transform Algorithm. The size of the input
 array must be a power of two, or else bad things will happen. There
 are currently no checks done to ensure this.
 
@@ -54,7 +55,7 @@ https://websites.pmc.ucsc.edu/~fnimmo/eart290c_17/NumericalRecipesinF77.pdf
 
 */
 pub fn base_f32_fft_in_place(array: &mut [Complex<f32>], 
-                        size: usize, is_inverse: bool) {
+                             size: usize, is_inverse: bool) {
     reverse_bit_sort(array, size);
     let mut block_size: usize = 2;
     while block_size <= size {
@@ -64,9 +65,9 @@ pub fn base_f32_fft_in_place(array: &mut [Complex<f32>],
                 let sgn: f64 = if is_inverse {-1.0} else {1.0};
                 let e: Complex<f64> = Complex {
                     real: f64::cos(2.0*std::f64::consts::PI
-                                *(i as f64)/(block_size as f64)),
+                                   *(i as f64)/(block_size as f64)),
                     imag: sgn*f64::sin(2.0*std::f64::consts::PI
-                                    *(i as f64)/(block_size as f64)),
+                                       *(i as f64)/(block_size as f64)),
                 };
                 let even: Complex<f64> = array[j + i].into();
                 let odd: Complex<f64> = array[j + i + block_size/2].into();
