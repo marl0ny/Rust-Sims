@@ -11,12 +11,6 @@ impl <T: std::ops::Neg<Output=T>> Complex<T> {
     }
 }
 
-impl <T: std::ops::Mul<Output=T> + Copy> Complex<T> {
-    pub fn scale(self, other: T) -> Complex<T> {
-        return Complex{real: self.real*other, imag: self.imag*other};
-    }
-}
-
 /* Into conversion from the size 64 (2 x f32) to size 128 (2 x f64) 
 bit complex struct. This follows closely to the example given in 
 the Rust documentation:
@@ -123,16 +117,78 @@ impl <T: std::ops::Neg<Output=T>
     }
 }
 
-pub fn c64exp(z: Complex<f32>) -> Complex<f32> {
-    return Complex {
-        real: f32::exp(z.real)*f32::cos(z.imag),
-        imag: f32::exp(z.real)*f32::sin(z.imag),
-    };
+/* This also follows the example from
+https://doc.rust-lang.org/std/ops/trait.Mul.html
+*/
+impl <T: std::ops::Neg<Output=T>
+        + std::ops::Add<Output=T> 
+        + std::ops::Sub<Output=T> 
+        + std::ops::Mul<Output=T> 
+        + std::ops::Div<Output=T> + Copy>std::ops::Mul<T> for Complex<T> {
+    type Output = Self;
+    fn mul(self, other: T) -> Self {
+        return Complex {
+            real: self.real*other,
+            imag: self.imag*other
+        };
+    }
 }
 
-/* fn c128exp(z: Complex<f64>) -> Complex<f64> {
-    return Complex {
-        real: f64::exp(z.real)*f64::cos(z.imag),
-        imag: f64::exp(z.real)*f64::sin(z.imag),
-    };
-}*/
+/* This also follows the example from
+https://doc.rust-lang.org/std/ops/trait.Div.html 
+*/
+impl <T: std::ops::Neg<Output=T>
+        + std::ops::Add<Output=T> 
+        + std::ops::Sub<Output=T> 
+        + std::ops::Mul<Output=T> 
+        + std::ops::Div<Output=T> + Copy>std::ops::Div<T> for Complex<T> {
+    type Output = Self;
+    fn div(self, other: T) -> Self {
+        return Complex {
+            real: self.real/other,
+            imag: self.imag/other
+        };
+    }
+}
+
+// Perhaps the next following two functions can
+// be refactored in to one?
+impl std::ops::Mul<Complex<f64>> for f64 {
+    type Output = Complex<f64>;
+    fn mul(self, other: Complex<f64>) -> Self::Output {
+        return Complex {
+            real: other.real*self,
+            imag: other.imag*self
+        };
+    }
+}
+
+impl std::ops::Mul<Complex<f32>> for f64 {
+    type Output = Complex<f32>;
+    fn mul(self, other: Complex<f32>) -> Self::Output {
+        return Complex {
+            real: ((other.real as f64)*self) as f32,
+            imag: ((other.imag as f64)*self) as f32
+        };
+    }
+}
+
+impl Complex<f64> {
+    pub fn exp(self) -> Complex<f64> {
+        return Complex {
+            real: f64::exp(self.real)*f64::cos(self.imag),
+            imag: f64::exp(self.real)*f64::sin(self.imag),
+        };
+    }
+}
+
+impl Complex<f32> {
+    pub fn exp(self) -> Complex<f32> {
+        return Complex {
+            real: (f64::exp(self.real as f64)*f64::cos(self.imag as f64))
+                 as f32,
+            imag: (f64::exp(self.real as f64)*f64::sin(self.imag as f64))
+                 as f32,
+        };
+    }
+}

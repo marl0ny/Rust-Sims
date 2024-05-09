@@ -91,7 +91,7 @@ fn propagate_kinetic(psi: &mut [Complex<f32>],
     }
     for i in 0..N {
         for j in 0..N {
-            psi[i*N + j] = psi[i*N + j]*c64exp(
+            psi[i*N + j] = psi[i*N + j]*Complex::<f32>::exp(
                 Complex {real: 0.0, imag: -0.5*p_squared[i*N + j]} * dt);
         }
     }
@@ -131,8 +131,8 @@ fn propagate_spatial_terms(
             let psi_ij = psi[ij];
             let potential_ij = potential[ij];
             let nonlinear_term 
-                = (psi_ij*psi_ij.conj()).scale(nonlinear.square);
-            psi[i*N + j] = psi_ij*c64exp(
+                = (psi_ij*psi_ij.conj())*nonlinear.square;
+            psi[i*N + j] = psi_ij*Complex::<f32>::exp(
                 Complex {real: 0.0, imag: -1.0} 
                 * (potential_ij + nonlinear_term)* dt);
         }
@@ -285,14 +285,14 @@ fn main() {
         propagate_spatial_terms(psi_vec.as_mut_slice(), 
                                 potential_vec.as_slice(),
                                 Nonlinear {square: 0.0},
-                                dt.scale(0.5));
+                                0.5*dt);
         propagate_kinetic(psi_vec.as_mut_slice(),
                           p_squared_vec.as_slice(), dt, true);
         dampen(psi_vec.as_mut_slice(), dt.real);
         propagate_spatial_terms(psi_vec.as_mut_slice(),
                                 potential_vec.as_slice(),
                                 Nonlinear {square: 0.0}, 
-                                dt.scale(0.5));
+                                0.5*dt);
         let at_every_step: usize = 3;
         if i % at_every_step == 0 {
             fill_pixel_data(&mut *boxed_pixels, 54,
